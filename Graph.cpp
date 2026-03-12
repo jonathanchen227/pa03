@@ -91,35 +91,41 @@ std::ostream& operator<<(std::ostream& out, const Connection& c) {
 
 // STUDENT TODO: IMPLEMENT
 void Graph::updateNode(int id, NodeInfo n) {
-    if (/* id is out of bounds — check if id is a valid index into nodes */ true) {
+    if ( id >= size ) {
         cout << "Attempting to update node with id: " << id << " but node does not exist" << endl;
         return;
     }
+   nodes[id]  =  new NodeInfo(n) ;
 
     return; //stub
 }
 
 // STUDENT TODO: IMPLEMENT
 NodeInfo* Graph::getNode(int id) const {
-    return nullptr; //stub
+    return nodes[id]; //stub
 }
 
 // STUDENT TODO: IMPLEMENT
 void Graph::updateConnection(int v, int u, double w) {
-    if (/* v is out of bounds — check if v is a valid index into nodes */ true) {
+    if (v >= size) {
         cerr << "Attempting to update connection between " << v << " and " << u << " with weight " << w << " but " << v << " does not exist" << endl;
         exit(1);
     }
-    if (/* u is out of bounds — check if u is a valid index into nodes */ true) {
+    if (u >= size) {
         cerr << "Attempting to update connection between " << v << " and " << u << " with weight " << w << " but " << u << " does not exist" << endl;
         exit(1);
     }
+    Connection a = Connection(v,u,w);
+    this->adjacencyList[v][u] = Connection(v,u,w);
 
     return; //stub
 }
 
 // STUDENT TODO: IMPLEMENT
 void Graph::clear() {
+	for ( int i = size - 1 ; i >= 0 ; i-- ) {
+		nodes.erase(nodes.begin() + i );
+	}
     return; //stub
 }
 

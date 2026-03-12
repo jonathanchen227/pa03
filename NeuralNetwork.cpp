@@ -9,44 +9,47 @@ using namespace std;
 
 // STUDENT TODO: IMPLEMENT
 void NeuralNetwork::eval() {
-    //stub
+    evaluating = true;
 }
 
 // STUDENT TODO: IMPLEMENT
 void NeuralNetwork::train() {
-    //stub
+    evaluating = false;
 }
 
 // STUDENT TODO: IMPLEMENT
 void NeuralNetwork::setLearningRate(double lr) {
-    //stub
+	learningRate = lr;    
 }
 
 // STUDENT TODO: IMPLEMENT
 void NeuralNetwork::setInputNodeIds(std::vector<int> inputNodeIds) {
-    //stub
+    for ( int i : inputNodeIds ) {
+	this->inputNodeIds.push_back(i);
+    }
 }
 
 // STUDENT TODO: IMPLEMENT
 void NeuralNetwork::setOutputNodeIds(std::vector<int> outputNodeIds) {
-    //stub
+    for ( int i : outputNodeIds ) {
+	this->outputNodeIds.push_back(i);
+    }
 }
 
 // STUDENT TODO: IMPLEMENT
 vector<int> NeuralNetwork::getInputNodeIds() const {
-    return vector<int>(); //stub
+    return inputNodeIds; //stub
 }
 
 // STUDENT TODO: IMPLEMENT
 vector<int> NeuralNetwork::getOutputNodeIds() const {
-    return vector<int>(); //stub
+    return outputNodeIds; //stub
 }
 
 // STUDENT TODO: IMPLEMENT
 vector<double> NeuralNetwork::predict(DataInstance instance) {
-
     vector<double> input = instance.x;
-
+    vector<std::unordered_map<int,Connection>> connectionList = getAdjacencyList();
     // error checking : size mismatch
     if (input.size() != inputNodeIds.size()) {
         cerr << "input size mismatch." << endl;
@@ -54,7 +57,28 @@ vector<double> NeuralNetwork::predict(DataInstance instance) {
         cerr << "\tBut got: " << input.size() << endl;
         return vector<double>();
     }
-
+    for ( int i = 0 ; i < inputNodeIds.size() ; i++ ) {
+        int nodeId = inputNodeIds[i];
+        nodes[nodeId] -> postActivationValue = input[i];
+    }
+    std::queue<int> integerQueue;
+    for ( vector<int> a : layers ) {
+	for ( int b : a ) {
+		integerQueue.push(b);
+	}
+    }
+    while ( !(integerQueue.empty()) ) {
+	int a = integerQueue.front();
+	visitPredictNode(a);
+	integerQueue.pop();
+	std::unordered_map<int,Connection> b = connectionList[a];
+	for ( auto&[integer,connection] : b ) {
+		visitPredictNeighbor(connection);
+	}
+		
+		
+	
+    }
     // BFT implementation goes here.
     // Note: before traversal begins, each input value in `input` must be loaded into
     // the corresponding input node's postActivationValue. Input nodes are not activated —
@@ -81,7 +105,9 @@ vector<double> NeuralNetwork::predict(DataInstance instance) {
 }
 // STUDENT TODO: IMPLEMENT
 bool NeuralNetwork::contribute(double y, double p) {
-
+    for ( int a : inputNodeIds ) {
+	contribute(a, y, p );
+    }
     // DFT implementation goes here.
     // This function initiates the recursion by calling the recursive helper
     // starting from each input layer node.
@@ -103,16 +129,29 @@ double NeuralNetwork::contribute(int nodeId, const double& y, const double& p) {
     // outgoingContribution: built up from this node's neighbors, then scaled by
     // this node's activation derivative before being returned to the previous layer.
     double outgoingContribution = 0;
-    NodeInfo* currNode = nodes.at(nodeId);
+    NodeInfo* currNode = nodes.at(nodeId); 
 
     // If this node is already in the contributions map, return its stored value immediately.
-
+    if ( contributions.count(nodeId) ) {
+	return contributions[nodeId]; 
+    }
     if (adjacencyList.at(nodeId).empty()) {
         // Base case: output node (no outgoing connections).
         // Seeds the backward pass with the initial error signal.
         // You do not need to understand this derivation.
         outgoingContribution = -1 * ((y - p) / (p * (1 - p)));
     }
+    else {
+	for ( auto & [id,connection]: adjacencyList[nodeId] ) {
+                double neighbourContribution = contribute(connection.dest, y, p ) ;
+                incomingContribution += neighbourContribution * connection.weight;
+         	visitContributeNeighbor(connection, neighbourContribution, outgoingContribution);
+    	}
+    }
+    if ( std::find(inputNodeIds.begin(),inputNodeIds.end(), nodeId)== inputNodeIds.end()) {
+	visitContributeNode( nodeId , outgoingContribution);
+    }
+    contributions[nodeId] = outgoingContribution; 
 
     // Before returning, store outgoingContribution in the contributions map.
 
@@ -121,7 +160,20 @@ double NeuralNetwork::contribute(int nodeId, const double& y, const double& p) {
 // STUDENT TODO: IMPLEMENT
 bool NeuralNetwork::update() {
     // apply the derivative contributions
-
+    for ( vector<int>& a : layers ) {
+	for ( int& nodeID : a ) {
+		NodeInfo* currNode = nodes.at(nodeID);
+		currNode->bias = currNode->bias - ( learningRate * currNode->delta);
+		currNode->delta = 0;
+	}
+    }
+    for ( std::unordered_map<int,Connection>& a : adjacencyList ) {
+	for ( auto& [integer,connection] : a ) {
+		connection.weight = connection.weight - ( learningRate*connection.delta);
+		connection.delta = 0;
+	}
+    }
+		 
     // traverse the graph in anyway you want. 
     // Each node has a delta term 
     // Each connection has a delta term
@@ -275,6 +327,9 @@ void NeuralNetwork::loadNetwork(istream& in) {
 void NeuralNetwork::visitPredictNode(int vId) {
     // accumulate bias, and activate
     NodeInfo* v = nodes.at(vId);
+    if ( std:: find( inputNodeIds.begin() , inputNodeIds.end(), vId ) != inputNodeIds.end() ) {
+	return;
+    }
     v->preActivationValue += v->bias;
     v->activate();
     // visualization use
